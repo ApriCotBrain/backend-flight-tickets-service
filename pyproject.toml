@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "backend-flight-tickets-service"
+version = "0.1.0"
+description = "Service for viewing available tickets"
+authors = ["Ольга Мелихова <melihova.o@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+xmltodict = "^0.13.0"
+aiofiles = "^24.1.0"
+fastapi = "^0.111.1"
+uvicorn = "^0.30.3"
+pytest = "^8.3.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
