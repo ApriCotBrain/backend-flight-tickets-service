@@ -17,14 +17,16 @@ async def get_temp_data_path(xml_file: UploadFile) -> str:
         await file.write(contents)
     return str(xml_data_path)
 
+
 async def get_all_flights(xml_data_path: str) -> list:
     """Read the xml file and convert it to a dictionary."""
     async with aiofiles.open(xml_data_path, "r") as file:
         xml_data = await file.read()
-        xml_dict = xmltodict.parse(xml_data)["AirFareSearchResponse"]["PricedItineraries"]
-        
-        for flight in xml_dict["Flights"]:
+        xml_dict = xmltodict.parse(xml_data)["AirFareSearchResponse"][
+            "PricedItineraries"
+        ]
 
+        for flight in xml_dict["Flights"]:
             flight["Pricing"]["currency"] = flight["Pricing"].pop("@currency")
 
             price_values = flight["Pricing"]["ServiceCharges"]
@@ -36,13 +38,16 @@ async def get_all_flights(xml_data_path: str) -> list:
             flight_values = flight["OnwardPricedItinerary"]["Flights"]["Flight"]
             if isinstance(flight_values, list):
                 for item in flight_values:
-                    item['Carrier']['id'] = item['Carrier'].pop('@id', item['Carrier'])
-                    item['Carrier']['text'] = item['Carrier'].pop('#text', item['Carrier'])
-            if  isinstance(flight_values, dict):
-                flight_values['Carrier']['id'] = flight_values['Carrier'].pop('@id')
-                flight_values['Carrier']['text'] = flight_values['Carrier'].pop('#text')
-            
+                    item["Carrier"]["id"] = item["Carrier"].pop("@id", item["Carrier"])
+                    item["Carrier"]["text"] = item["Carrier"].pop(
+                        "#text", item["Carrier"]
+                    )
+            if isinstance(flight_values, dict):
+                flight_values["Carrier"]["id"] = flight_values["Carrier"].pop("@id")
+                flight_values["Carrier"]["text"] = flight_values["Carrier"].pop("#text")
+
         return xml_dict
+
 
 async def get_direct_flights(xml_data_path: str) -> list:
     """Get direct flight options."""
@@ -56,6 +61,7 @@ async def get_direct_flights(xml_data_path: str) -> list:
 
     return direct_flights_list
 
+
 async def get_flights_with_transfers(xml_data_path: str) -> list:
     """Get flight options with transfers."""
     all_values_list = await get_all_flights(xml_data_path=xml_data_path)
@@ -65,8 +71,9 @@ async def get_flights_with_transfers(xml_data_path: str) -> list:
         possible_direct_flight = flight["OnwardPricedItinerary"]["Flights"]["Flight"]
         if isinstance(possible_direct_flight, list):
             direct_flights_list.append(flight)
-   
+
     return direct_flights_list
+
 
 async def get_most_expensive_tickets(xml_data_path: str) -> list:
     """Get the most expencive tickets in SingleAdult BaseFare values."""
@@ -75,7 +82,9 @@ async def get_most_expensive_tickets(xml_data_path: str) -> list:
     most_expensive_tikets = []
 
     for flight in all_values_list["Flights"]:
-        possible_most_expensive_tickets_price = Decimal(flight["Pricing"]["ServiceCharges"][0]["text"])
+        possible_most_expensive_tickets_price = Decimal(
+            flight["Pricing"]["ServiceCharges"][0]["text"]
+        )
         prices.append(possible_most_expensive_tickets_price)
 
     max_price = max(prices)
@@ -83,17 +92,20 @@ async def get_most_expensive_tickets(xml_data_path: str) -> list:
     for flight in all_values_list["Flights"]:
         if Decimal(flight["Pricing"]["ServiceCharges"][0]["text"]) == max_price:
             most_expensive_tikets.append(flight)
- 
+
     return most_expensive_tikets
 
-async def get_cheapest_tickets(xml_data_path: str) -> list:   
+
+async def get_cheapest_tickets(xml_data_path: str) -> list:
     """Get the cheapest tickets in SingleAdult BaseFare values."""
     all_values_list = await get_all_flights(xml_data_path=xml_data_path)
     prices = []
     cheapest_tikets = []
 
     for flight in all_values_list["Flights"]:
-        possible_cheapest_tikets_price = Decimal(flight["Pricing"]["ServiceCharges"][0]["text"])
+        possible_cheapest_tikets_price = Decimal(
+            flight["Pricing"]["ServiceCharges"][0]["text"]
+        )
         prices.append(possible_cheapest_tikets_price)
 
     min_price = min(prices)
@@ -104,6 +116,7 @@ async def get_cheapest_tickets(xml_data_path: str) -> list:
 
     return cheapest_tikets
 
+
 def calculate_flight_time(flight) -> float:
     """Calculate total flight time."""
     flights = flight["OnwardPricedItinerary"]["Flights"]["Flight"]
@@ -112,11 +125,16 @@ def calculate_flight_time(flight) -> float:
         flight_end = datetime.strptime(flights["ArrivalTimeStamp"], "%Y-%m-%dT%H%M")
         possible_longest_time = flight_end - flight_start
     if isinstance(flights, list):
-        first_flight_start = datetime.strptime(flights[0]["DepartureTimeStamp"], "%Y-%m-%dT%H%M")
-        last_flight_end = datetime.strptime(flights[-1]["ArrivalTimeStamp"], "%Y-%m-%dT%H%M")
+        first_flight_start = datetime.strptime(
+            flights[0]["DepartureTimeStamp"], "%Y-%m-%dT%H%M"
+        )
+        last_flight_end = datetime.strptime(
+            flights[-1]["ArrivalTimeStamp"], "%Y-%m-%dT%H%M"
+        )
         possible_longest_time = last_flight_end - first_flight_start
 
     return possible_longest_time.total_seconds()
+
 
 async def get_longest_flights(xml_data_path: str) -> list:
     """Get the longest flight values."""
@@ -135,6 +153,7 @@ async def get_longest_flights(xml_data_path: str) -> list:
 
     return longest_flights
 
+
 async def get_shortest_flights(xml_data_path: str) -> list:
     """Get the shortest flight values."""
     all_values_list = await get_all_flights(xml_data_path=xml_data_path)
@@ -151,6 +170,7 @@ async def get_shortest_flights(xml_data_path: str) -> list:
             shortest_flights.append(flight)
 
     return shortest_flights
+
 
 async def most_optimal_tickets(xml_data_path: str, priority: str) -> list:
     """Get the most optimal tickets by price or flight time."""
