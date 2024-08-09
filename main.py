@@ -1,11 +1,11 @@
 import uvicorn
 from fastapi import FastAPI
 
-from app.tickets import tickets_router
+# from app.tickets import tickets_router
 
 app = FastAPI()
 
-app.include_router(tickets_router)
+# app.include_router(tickets_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
