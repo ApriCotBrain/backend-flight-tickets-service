@@ -1,3 +1,6 @@
+from datetime import datetime
+from decimal import Decimal
+
 from pydantic import BaseModel
 
 
@@ -8,8 +11,8 @@ class Flight(BaseModel):
     flight_number: str
     source: str
     destination: str
-    departure_time: str
-    arrival_time: str
+    departure_time: datetime
+    arrival_time: datetime
     flight_class: str
     number_of_stops: int
     fare_basis: str
@@ -20,7 +23,7 @@ class Price(BaseModel):
     currency: str
     type: str
     charge_type: str
-    price: float
+    price: Decimal
 
 
 class Ticket(BaseModel):

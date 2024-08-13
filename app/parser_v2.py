@@ -1,23 +1,37 @@
+from datetime import datetime
+from decimal import Decimal
 import xml.etree.ElementTree as ET
 
 from app.schemas import Flight, Price, Ticket
 
-# xml_data = "RS_ViaOW.xml"
-# xml_data = "RS_Via-3.xml"
 
-def parse_all_flights(xml_data: str) -> list[Ticket]:
+async def parse_all_flights(xml_data: str) -> list[ET.Element]:
+    """
+    Parse an XML string containing flight data and extract all priced itineraries.
+
+    Returns a list of ElementTree elements representing the priced itineraries.
+    """
     tree = ET.parse(xml_data)
     root = tree.getroot()
 
-    tickets = []
+    target_tags = root.findall("PricedItineraries/")
 
-    target_tag = root.findall("PricedItineraries/")
-    for child in target_tag:
+    return target_tags
+
+
+async def parse_pricing(target_tags: list[ET.Element]) -> list[Price]:
+    """
+    Extract pricing information from a list of ElementTree elements.
+
+    Returns a list of Price objects containing the extracted pricing data.
+    """
+    prices_values = []
+
+    for child in target_tags:
         flight_prices = child.find("Pricing")
         currency = flight_prices.get("currency")
         service_charges = flight_prices.findall("ServiceCharges")
 
-        prices_values = []
         for prices in service_charges:
             type = prices.get("type")
             charge_type = prices.get("ChargeType")
@@ -26,15 +40,26 @@ def parse_all_flights(xml_data: str) -> list[Ticket]:
                 currency=currency,
                 type=type,
                 charge_type=charge_type,
-                price=price,
+                price=Decimal(price),
             )
             prices_values.append(price_schema)
+    return prices_values
 
-        flights_values = []
 
-        ownard_flight_elements = child.find("OnwardPricedItinerary")
-        ownard_flights = ownard_flight_elements.findall("Flights/Flight")
-        for flight in ownard_flights:
+async def parse_flights(
+    target_tags: list[ET.Element], itenary_type: str
+) -> list[Flight]:
+    """
+    Extract flight information from a list of ElementTree elements.
+
+    Returns a list of Flight objects containing the extracted flight data.
+    """
+    flights_values = []
+
+    for child in target_tags:
+        flight_elements = child.find(itenary_type)
+        flights = flight_elements.findall("Flights/Flight")
+        for flight in flights:
             carrier_id = flight.find("Carrier").get("id")
             carrier = flight.find("Carrier").text
             flight_number = flight.find("FlightNumber").text
@@ -47,64 +72,55 @@ def parse_all_flights(xml_data: str) -> list[Ticket]:
             fare_basis = flight.find("FareBasis").text
             ticket_type = flight.find("TicketType").text
             flight_schema = Flight(
-                itinerary_type="ownard",
+                itinerary_type=itenary_type,
                 carrier_id=carrier_id,
                 carrier=carrier,
                 flight_number=flight_number,
                 source=source,
                 destination=destination,
-                departure_time=departure_time,
-                arrival_time=arrival_time,
+                departure_time=datetime.strptime(departure_time, "%Y-%m-%dT%H%M"),
+                arrival_time=datetime.strptime(arrival_time, "%Y-%m-%dT%H%M"),
                 flight_class=flight_class,
                 number_of_stops=number_of_stops,
                 fare_basis=fare_basis,
                 ticket_type=ticket_type,
-                price_schema=price_schema,
+                price_schema=itenary_type,
             )
             flights_values.append(flight_schema)
 
-        return_flight_elements = child.find("ReturnPricedItinerary")        
+    return flights_values
+
+
+async def get_all_tickets(xml_data: str) -> list[Ticket]:
+    """
+    Extracts and returns a list of ticket objects from the provided XML data.
+
+    Returns a list of Ticket objects, each representing a flight ticket.
+    """
+    target_tag = await parse_all_flights(xml_data)
+    tickets = []
+
+    for child in target_tag:
+        prices = await parse_pricing(target_tag)
+
+        ownard_flight_elements = child.find("OnwardPricedItinerary")
+        if ownard_flight_elements:
+            flights = await parse_flights(
+                target_tag, itenary_type="OnwardPricedItinerary"
+            )
+
+        return_flight_elements = child.find("ReturnPricedItinerary")
         if return_flight_elements:
-            return_flights = return_flight_elements.findall("Flights/Flight")
-            for flight in return_flights:
-                carrier_id = flight.find("Carrier").get("id")
-                carrier = flight.find("Carrier").text
-                flight_number = flight.find("FlightNumber").text
-                source = flight.find("Source").text
-                destination = flight.find("Destination").text
-                departure_time = flight.find("DepartureTimeStamp").text
-                arrival_time = flight.find("ArrivalTimeStamp").text
-                flight_class = flight.find("Class").text
-                number_of_stops = flight.find("NumberOfStops").text
-                fare_basis = flight.find("FareBasis").text
-                ticket_type = flight.find("TicketType").text
-                flight_schema = Flight(
-                    itinerary_type="return",
-                    carrier_id=carrier_id,
-                    carrier=carrier,
-                    flight_number=flight_number,
-                    source=source,
-                    destination=destination,
-                    departure_time=departure_time,
-                    arrival_time=arrival_time,
-                    flight_class=flight_class,
-                    number_of_stops=number_of_stops,
-                    fare_basis=fare_basis,
-                    ticket_type=ticket_type,
-                    price_schema=price_schema,
-                )
-                flights_values.append(flight_schema)
+            flights = await parse_flights(
+                target_tag, itenary_type="ReturnPricedItinerary"
+            )
 
         ticket_schema = Ticket(
             round_trip=True if return_flight_elements else False,
-            flights=flights_values,
-            price=prices_values,
+            flights=flights,
+            price=prices,
         )
 
         tickets.append(ticket_schema)
 
-    # print(tickets)
     return tickets
-
-
-# parse_all_flights(xml_data)
