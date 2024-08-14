@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "backend-flight-tickets-service"
 version = "0.1.0"
-description = "Service for viewing available tickets"
+description = "Service for viewing available tickets."
 authors = ["Olga Melikhova <melihova.o@yandex.ru>"]
 readme = "README.md"
 
@@ -10,7 +10,7 @@ python = "^3.11"
 fastapi = "^0.111.1"
 uvicorn = "^0.30.3"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.test-dependencies]
 pytest = "^8.3.2"
 pytest-asyncio = "^0.23.8"
 
